@@ -1,0 +1,208 @@
+import { store } from "@/lib/store";
+import { requireAdmin, getScopedAppIds } from "@/lib/auth";
+import { Users, Search, Filter, LayoutGrid, Key, Clock, RotateCcw, FileText, Trash2, Shield } from "lucide-react";
+import { UserCardMenu } from "@/components/UserCardMenu";
+import Link from "next/link";
+import { cookies } from "next/headers";
+
+export const dynamic = "force-dynamic";
+
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: { app?: string; banned?: string };
+}) {
+  const me = await requireAdmin();
+  const scopedIds = await getScopedAppIds(me);
+  const allApps = await store.listApps();
+  const apps = scopedIds === null ? allApps : allApps.filter((a) => scopedIds.includes(a.id));
+  const cookieStore = await cookies();
+  const cookieApp = cookieStore.get("ka_current_app")?.value;
+
+  let activeAppId = searchParams.app || cookieApp || "";
+  if (!activeAppId && apps.length > 0) activeAppId = apps[0].id;
+  if (activeAppId && !apps.find((a) => a.id === activeAppId)) activeAppId = apps[0]?.id || "";
+
+  const filterAppId = searchParams.app || activeAppId || undefined;
+  const users = await store.listAppUsers({
+    appId: filterAppId,
+    banned: searchParams.banned === "1" ? true : undefined,
+    limit: 200,
+  });
+  const filteredUsers = scopedIds === null ? users : users.filter((u) => scopedIds.includes(u.app_id));
+  const appsById = new Map(apps.map((a) => [a.id, a]));
+
+  return (
+    <div>
+      <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Users</h1>
+          <p className="text-sm text-text-muted mt-1">
+            After someone registers for your app with a license, they will appear here.{" "}
+            <a href="#" className="text-accent-glow hover:text-accent">Learn More.</a>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[240px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim" />
+            <input
+              type="text"
+              placeholder="Search Users..."
+              className="w-full rounded-md bg-bg-secondary border border-border pl-9 pr-3 py-2 text-sm placeholder:text-text-dim focus:outline-none focus:border-accent"
+            />
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <ActionIcon Icon={Filter} title="Filter" />
+            <ActionIcon Icon={LayoutGrid} title="Grid view" active />
+            <ActionIcon Icon={Key} title="By key" />
+            <ActionIcon Icon={Clock} title="By date" />
+            <ActionIcon Icon={RotateCcw} title="Reset" />
+            <ActionIcon Icon={FileText} title="Export" />
+            <ActionIcon Icon={Trash2} title="Delete selected" danger />
+          </div>
+        </div>
+
+        {apps.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap text-sm">
+            <FilterLink href={activeAppId ? `/dashboard/users?app=${activeAppId}` : "/dashboard/users"} label="All" active={!searchParams.banned && !searchParams.app} />
+            <FilterLink href={`/dashboard/users?app=${activeAppId}&banned=1`} label="Banned" active={searchParams.banned === "1"} />
+            {apps.map((a) => (
+              <FilterLink
+                key={a.id}
+                href={`/dashboard/users?app=${a.id}`}
+                label={a.name}
+                active={activeAppId === a.id}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 text-sm text-text-muted">
+          <input type="checkbox" className="accent-accent" />
+          <span>Select All</span>
+          <span className="ml-3 text-text-dim">{filteredUsers.length} total</span>
+        </div>
+
+        {filteredUsers.length === 0 ? (
+          <div className="card text-center py-16">
+            <Users className="w-10 h-10 text-text-dim mx-auto mb-3" />
+            <p className="text-text-muted mb-1">No users yet</p>
+            <p className="text-xs text-text-dim">Use the <span className="text-text">Create</span> button at the top right to create a user for one of your apps.</p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredUsers.map((u) => {
+              const isPaused = u.hwid === "PAUSED";
+              const status = u.banned ? "banned" : isPaused ? "paused" : "active";
+              return (
+                <div key={u.id} className="card relative hover:border-border-light transition group">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <input type="checkbox" className="accent-accent mt-0.5" />
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{u.username}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <StatusBadge status={status} />
+                      <UserCardMenu user={{ id: u.id, banned: u.banned, paused: isPaused, username: u.username }} />
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                    <Field label="Created" value={formatDate(u.created_at)} />
+                    <Field label="Last Login" value={u.last_login ? formatDate(u.last_login) : "Never"} />
+                    <Field label="IP" value={u.ip || "—"} mono />
+                    <Field label="2FA" value={u.hwid && u.hwid !== "PAUSED" ? "Yes" : "No"} />
+                    <Field label="Cooldown" value="N/A" />
+                    <Field label="HWID Affected" value={u.hwid && u.hwid !== "PAUSED" ? "Yes" : "No"} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <PaginationFooter count={filteredUsers.length} />
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const cls =
+    status === "active"
+      ? "bg-success/15 text-success border-success/30"
+      : status === "banned"
+      ? "bg-danger/15 text-danger border-danger/30"
+      : "bg-warning/15 text-warning border-warning/30";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${cls}`}>
+      Status: {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
+
+function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <span className="text-text-dim">{label}: </span>
+      <span className={mono ? "font-mono text-text-muted" : "text-text-muted"}>{value}</span>
+    </div>
+  );
+}
+
+function ActionIcon({ Icon, title, active, danger }: { Icon: any; title: string; active?: boolean; danger?: boolean }) {
+  return (
+    <button
+      title={title}
+      className={
+        "w-9 h-9 rounded-md flex items-center justify-center border transition " +
+        (danger
+          ? "border-danger/40 bg-danger/10 text-danger hover:bg-danger/20"
+          : active
+          ? "border-accent/40 bg-accent/10 text-accent-glow"
+          : "border-border bg-bg-secondary text-text-muted hover:bg-bg-hover hover:text-text")
+      }
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+}
+
+function FilterLink({ href, label, active }: { href: string; label: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={
+        "rounded-md px-3 py-1.5 border text-sm transition " +
+        (active
+          ? "bg-accent/10 border-accent/40 text-accent-glow"
+          : "border-border text-text-muted hover:text-text hover:border-border-light")
+      }
+    >
+      {label}
+    </Link>
+  );
+}
+
+function PaginationFooter({ count }: { count: number }) {
+  return (
+    <div className="flex items-center justify-between text-sm text-text-muted pt-2">
+      <button className="px-3 py-1.5 rounded-md border border-border hover:border-border-light disabled:opacity-40" disabled>
+        Previous
+      </button>
+      <span>Showing page 1 of 1</span>
+      <button className="px-3 py-1.5 rounded-md border border-border hover:border-border-light disabled:opacity-40" disabled>
+        Next
+      </button>
+    </div>
+  );
+}
+
+function formatDate(d: string | null) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-US", {
+    day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+}
