@@ -6,10 +6,7 @@ import { canAccessApp } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   return safeRoute(async () => {
     const me = await requireAdmin();
     const existing = await store.getAppUserById(params.id);
@@ -31,14 +28,15 @@ export async function PATCH(
     }
     if (body?.password) {
       const pw = String(body.password);
-      if (pw.length < 6)
-        return { status: 400, data: { success: false, message: "Password must be at least 6 characters" } };
+      if (pw.length < 1) return { status: 400, data: { success: false, message: "Password must be at least 1 character" } };
       update.password_hash = await bcrypt.hash(pw, 10);
     }
     if (body?.email !== undefined) {
       update.email = body.email ? String(body.email) : null;
     }
-
+    if (typeof body?.balance === "number") {
+      update.balance = body.balance;
+    }
     if (typeof body?.paused === "boolean") {
       if (body.paused) {
         update.hwid = "PAUSED";
@@ -52,10 +50,7 @@ export async function PATCH(
   });
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   return safeRoute(async () => {
     const me = await requireAdmin();
     const existing = await store.getAppUserById(params.id);

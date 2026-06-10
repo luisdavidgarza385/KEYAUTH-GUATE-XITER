@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
     const maxUses = Math.max(parseInt(String(body?.maxUses || 1)) || 1, 1);
     const hwidLock = !!body?.hwidLock;
     const ipLock = !!body?.ipLock;
-    const prefix = String(body?.prefix || "Guate Xiter").trim() || "Guate Xiter";
-    const suffix = String(body?.suffix || "****-****-****-****").trim() || "****-****-****-****";
+    const prefix = String(body?.prefix || "Guate Xiter").replace(/[^a-zA-Z0-9\-_ ]/g, "").trim() || "Guate Xiter";
+    const suffix = String(body?.suffix || "****-****-****-****").replace(/[^a-zA-Z0-9\-_*]/g, "").trim() || "****-****-****-****";
     const packageName = String(body?.packageName || "Bypass").trim() || "Bypass";
     const note = String(body?.note || "").trim();
 

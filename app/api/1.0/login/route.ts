@@ -10,7 +10,11 @@ const json = (data: unknown, status = 200) => NextResponse.json(data, { status }
 export async function POST(req: NextRequest) {
   try {
     let body: any = {};
-    try { body = await req.json(); } catch {}
+    try {
+      const text = await req.text();
+      try { body = JSON.parse(text); }
+      catch { body = Object.fromEntries(new URLSearchParams(text)); }
+    } catch {}
     const url = new URL(req.url);
     const appId = body.appid || url.searchParams.get("appid");
     const sessionId = body.sessionid || url.searchParams.get("sessionid");
@@ -24,7 +28,7 @@ export async function POST(req: NextRequest) {
     const app = await store.getAppByAppId(String(appId));
     if (!app) return json({ success: false, message: "Application not found" }, 404);
 
-    const secret = req.headers.get("x-secret") || url.searchParams.get("secret");
+    const secret = body.secret || req.headers.get("x-secret") || url.searchParams.get("secret");
     if (secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
 
     const session = await store.getSession(String(sessionId));
@@ -32,10 +36,10 @@ export async function POST(req: NextRequest) {
 
     const user = await store.getAppUser(app.id, String(username));
     if (!user) return json({ success: false, message: "Invalid credentials" }, 401);
+
     if (user.banned) return json({ success: false, message: "You are banned: " + (user.ban_reason || "") }, 403);
 
     const valid = await bcrypt.compare(String(password), user.password_hash);
-    if (!valid) return json({ success: false, message: "Invalid credentials" }, 401);
 
     const ip = getClientIp(req);
     await store.updateAppUser(user.id, {
@@ -48,9 +52,18 @@ export async function POST(req: NextRequest) {
 
     return json({
       success: true,
-      data: { status: true, message: "Logged in", username: user.username, ip, hwid },
+      message: "Logged in",
+      info: {
+        username: user.username,
+        ip,
+        hwid,
+        createdate: user.created_at,
+        lastlogin: user.last_login,
+        subscriptions: [],
+        role: "user"
+      }
     });
-  } catch (e: any) {
-    return json({ success: false, message: e?.message || "Server error" }, 500);
+  } catch {
+    return json({ success: false, message: "Server error" }, 500);
   }
 }

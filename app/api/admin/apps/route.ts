@@ -5,6 +5,14 @@ import { generateId } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+export async function GET() {
+  return safeRoute(async () => {
+    const admin = await requireAdmin();
+    const apps = await store.listApps({ ownerId: admin.id });
+    return { data: { success: true, data: apps } };
+  });
+}
+
 export async function POST(req: NextRequest) {
   return safeRoute(async () => {
     const admin = await requireAdmin();

@@ -56,9 +56,8 @@ async function read(): Promise<DB> {
 
 async function persist(db: LocalDb) {
   await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = DB_FILE + ".tmp";
-  await fs.writeFile(tmp, JSON.stringify(db, null, 2), "utf-8");
-  await fs.rename(tmp, DB_FILE);
+  const raw = JSON.stringify(db, null, 2);
+  await fs.writeFile(DB_FILE, raw, "utf-8");
 }
 
 async function withWrite<T>(fn: (db: LocalDb) => Promise<T> | T): Promise<T> {
@@ -103,6 +102,9 @@ async function bootstrap() {
         password_hash: await bcrypt.hash(pw, 10),
         role: "admin",
         created_at: now(),
+        subscription_end: null,
+        subscription_app_id: null,
+        seller_label: "keyauthpro",
       });
       await persist(db);
     }
@@ -131,6 +133,14 @@ export const localStore: Store = {
         password_hash: data.password_hash,
         role: data.role,
         created_at: now(),
+        subscription_end: null,
+        subscription_app_id: null,
+        seller_label: data.role === "seller" ? data.email.toLowerCase() : "keyauthpro",
+        created_by: data.created_by || null,
+        credits: typeof data.credits === "number" ? data.credits : 0,
+        status: data.status || "Activo",
+        permissions: data.permissions || [],
+        subscriptions: data.subscriptions || [],
       };
       db.admins.push(admin);
       return admin;
@@ -316,12 +326,8 @@ export const localStore: Store = {
   },
 
   async createSession(data) {
+    const session = { ...data, id: id(), created_at: now() };
     return withWrite(async (db) => {
-      const session: Session = {
-        ...data,
-        id: id(),
-        created_at: now(),
-      };
       db.sessions.push(session);
       return session;
     });

@@ -4,6 +4,15 @@ export interface Admin {
   password_hash: string;
   role: string;
   created_at: string;
+  subscription_end: string | null;
+  subscription_app_id: string | null;
+  seller_label: string | null;
+  created_by?: string | null;
+  credits?: number;
+  status?: string;
+  permissions?: string[];
+  subscriptions?: string[];
+  api_key?: string;
 }
 
 export interface App {
@@ -33,6 +42,7 @@ export interface AppUser {
   banned: boolean;
   ban_reason: string | null;
   created_at: string;
+  balance?: number;
 }
 
 export interface License {
@@ -99,7 +109,17 @@ export interface OAuthLink {
 export interface Store {
   getAdminByEmail(email: string): Promise<Admin | null>;
   getAdminById(id: string): Promise<Admin | null>;
-  createAdmin(data: { email: string; password_hash: string; role: string }): Promise<Admin>;
+  createAdmin(data: {
+    email: string;
+    password_hash: string;
+    role: string;
+    created_by?: string | null;
+    credits?: number;
+    status?: string;
+    permissions?: string[];
+    subscriptions?: string[];
+    api_key?: string;
+  }): Promise<Admin>;
   updateAdmin(id: string, data: Admin): Promise<Admin | null>;
   deleteAdmin(id: string): Promise<void>;
   listAdmins(): Promise<Admin[]>;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { store } from "@/lib/store";
+import { signSessionValue } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +41,7 @@ export async function POST(req: NextRequest) {
       return json({ success: false, message: "Invalid credentials" }, 401);
     }
 
-    const cookieValue = Buffer.from(
-      JSON.stringify({ id: admin.id, email: admin.email, role: admin.role })
-    ).toString("base64");
+    const cookieValue = signSessionValue({ id: admin.id, email: admin.email, role: admin.role as "admin" | "seller" | "developer" });
 
     const res = json({ success: true, data: { id: admin.id, email: admin.email, role: admin.role } });
     res.cookies.set("ka_admin_session", cookieValue, {
@@ -52,7 +51,7 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
     });
     return res;
-  } catch (e: any) {
-    return json({ success: false, message: e?.message || "Server error" }, 500);
+  } catch {
+    return json({ success: false, message: "Server error" }, 500);
   }
 }

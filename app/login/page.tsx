@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import styles from "./auth.module.css";
 
-export const metadata = { title: "Sign in — Guate Xiter" };
+export const metadata = { title: "Login — Guate Xiter" };
 
 const ERR_MESSAGES: Record<string, string> = {
   discord_not_configured: "Discord login is not configured.",
@@ -26,14 +26,17 @@ export default function LoginPage({ searchParams }: { searchParams: { err?: stri
         <div className={styles.brandIcon}>
           <ShieldCheck strokeWidth={1.5} />
         </div>
-        <h1 className={styles.title}>Welcome Back</h1>
-        <p className={styles.subtitle}>Sign in to access your account</p>
+        <h1 className={styles.title}>Welcome back!</h1>
+        <p className={styles.subtitle}>Login to your account</p>
         <div className={styles.card}>
           {errMsg && <div className={styles.error}>{errMsg}</div>}
           <LoginForm />
         </div>
         <p className={styles.footer}>
-          Don&apos;t have an account?<Link href="/register">Sign up</Link>
+          Don&apos;t have an account?<Link href="/register"> Register here</Link>
+        </p>
+        <p className={styles.footer}>
+          Sub-Reseller?<Link href="/login-sub"> Login here</Link>
         </p>
       </div>
     </div>

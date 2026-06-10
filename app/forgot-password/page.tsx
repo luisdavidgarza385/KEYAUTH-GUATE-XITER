@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, KeyRound, ArrowLeft, Check } from "lucide-react";
+import { Loader2, KeyRound, ArrowLeft, Check, ShieldCheck } from "lucide-react";
+import styles from "../login/auth.module.css";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -30,74 +31,61 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-bg">
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg shadow-accent/30">
-            <img src="/logo.png" alt="Guate Xiter" className="w-full h-full object-cover" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight">Guate Xiter</span>
+    <div className={styles.page}>
+      <div className={styles.box}>
+        <div className={styles.brandIcon}>
+          <ShieldCheck strokeWidth={1.5} />
         </div>
-
-        <div className="card !p-6">
-          <Link href="/login" className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text mb-3">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to login
-          </Link>
-          <div className="flex items-center gap-2 mb-1">
-            <KeyRound className="w-5 h-5 text-accent-glow" />
-            <h1 className="text-xl font-semibold">Reset your password</h1>
-          </div>
-          <p className="text-sm text-text-muted mb-5">
-            Enter your account email and a new password. This works for self-hosted Guate Xiter instances where the admin doesn&apos;t have email delivery set up.
-          </p>
-
+        <h1 className={styles.title}>Reset your password</h1>
+        <p className={styles.subtitle}>Enter your email and a new password</p>
+        <div className={styles.card}>
           {done ? (
-            <div className="space-y-3">
-              <div className="rounded-md bg-success/10 border border-success/30 px-3 py-3 text-sm text-success flex items-start gap-2">
-                <Check className="w-4 h-4 mt-0.5 shrink-0" />
-                <div>
-                  <div className="font-semibold">Password updated</div>
-                  <div className="text-xs mt-0.5">You can now log in with your new password.</div>
-                </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, borderRadius: 12, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", marginBottom: 16 }}>
+                <Check className="w-6 h-6" style={{ color: "#34d399" }} />
               </div>
-              <Link href="/login" className="btn-primary text-sm w-full text-center">Go to login</Link>
+              <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 20 }}>Password updated. You can now log in.</p>
+              <Link href="/login" className={styles.premiumBtn} style={{ textDecoration: "none", display: "block", textAlign: "center" }}>Go to login</Link>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="label">Email</label>
+            <>
+              <div style={{ marginBottom: 4 }}>
+                <Link href="/login" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#71717a", textDecoration: "none", marginBottom: 12 }}>
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back to login
+                </Link>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label className={styles.inputLabel}>Email</label>
                 <input
-                  className="input"
+                  className={styles.premiumInput}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
+                  style={{ paddingRight: 14 }}
                 />
               </div>
-              <div>
-                <label className="label">New password</label>
+              <div style={{ marginBottom: 16 }}>
+                <label className={styles.inputLabel}>New password</label>
                 <input
-                  className="input"
+                  className={styles.premiumInput}
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="At least 6 characters"
+                  style={{ paddingRight: 14 }}
                 />
               </div>
-              {err && (
-                <div className="rounded-md bg-danger/10 border border-danger/30 px-3 py-2 text-sm text-danger">
-                  {err}
-                </div>
-              )}
-              <button onClick={submit} disabled={loading} className="btn-primary text-sm w-full">
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Reset password"}
+              {err && <div className={styles.error}>{err}</div>}
+              <button onClick={submit} disabled={loading} className={styles.premiumBtn}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Reset password"}
               </button>
-              <p className="text-[11px] text-text-dim text-center">
-                In a production deployment with SMTP, this would send a reset link to your email.
-              </p>
-            </div>
+            </>
           )}
         </div>
+        <p className={styles.footer}>
+          Already have an account?<Link href="/login"> Login here</Link>
+        </p>
       </div>
     </div>
   );

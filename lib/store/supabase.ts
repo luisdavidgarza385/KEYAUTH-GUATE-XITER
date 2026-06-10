@@ -45,7 +45,16 @@ export const supabaseStore: Store = {
   async createAdmin(data) {
     const { data: row, error } = await db()
       .from("admin_users")
-      .insert({ email: data.email, password_hash: data.password_hash, role: data.role } as any)
+      .insert({
+        email: data.email,
+        password_hash: data.password_hash,
+        role: data.role,
+        created_by: data.created_by || null,
+        credits: data.credits || 0,
+        status: data.status || "Activo",
+        permissions: data.permissions || [],
+        subscriptions: data.subscriptions || [],
+      } as any)
       .select()
       .single();
     if (error) throw error;

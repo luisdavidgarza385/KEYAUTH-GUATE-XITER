@@ -1,8 +1,9 @@
 import { store } from "@/lib/store";
 import { requireAdmin } from "@/lib/auth";
-import { Settings as SettingsIcon, Key } from "lucide-react";
+import { Settings as SettingsIcon, Key, Palette } from "lucide-react";
 import { CopyButton } from "@/components/CopyButton";
 import { VariablesManager } from "@/components/VariablesManager";
+import { ThemeCustomizer } from "@/components/ThemeCustomizer";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,10 @@ export default async function SettingsPage() {
             <span className="badge-accent">{admin.role}</span>
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <ThemeCustomizer />
       </div>
 
       <div className="card">

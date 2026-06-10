@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "KeyAuth Clone — License Auth Platform",
+  title: "Guate Xiter — License Auth Platform",
   description: "License authentication & user management platform",
 };
 

@@ -10,7 +10,11 @@ const json = (data: unknown, status = 200) => NextResponse.json(data, { status }
 export async function POST(req: NextRequest) {
   try {
     let body: any = {};
-    try { body = await req.json(); } catch {}
+    try {
+      const text = await req.text();
+      try { body = JSON.parse(text); }
+      catch { body = Object.fromEntries(new URLSearchParams(text)); }
+    } catch {}
     const url = new URL(req.url);
     const appId = body.appid || url.searchParams.get("appid");
     const sessionId = body.sessionid || url.searchParams.get("sessionid");
@@ -27,7 +31,7 @@ export async function POST(req: NextRequest) {
     const app = await store.getAppByAppId(String(appId));
     if (!app) return json({ success: false, message: "Application not found" }, 404);
 
-    const secret = req.headers.get("x-secret") || url.searchParams.get("secret");
+    const secret = body.secret || req.headers.get("x-secret") || url.searchParams.get("secret");
     if (secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
 
     const session = await store.getSession(String(sessionId));
@@ -75,7 +79,7 @@ export async function POST(req: NextRequest) {
     await store.createLog({ app_id: app.id, user_id: user.id, message: `registered ${username}`, level: "info" });
 
     return json({ success: true, data: { status: true, message: "Registered", username: user.username, expires_at: expires.toISOString() } });
-  } catch (e: any) {
-    return json({ success: false, message: e?.message || "Server error" }, 500);
+  } catch {
+    return json({ success: false, message: "Server error" }, 500);
   }
 }

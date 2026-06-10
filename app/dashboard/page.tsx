@@ -1,227 +1,242 @@
 import { store } from "@/lib/store";
 import { requireAdmin, getScopedAppIds } from "@/lib/auth";
-import { AppWindow, Key, Users, Activity, TrendingUp, TrendingDown, Server, Database, HardDrive, Cpu, Box, CheckCircle2, AlertCircle, Pause, MoreVertical, Monitor } from "lucide-react";
+import { Users, Coins, Sparkles, LayoutDashboard, ChevronRight, Activity, Calendar, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-function trendPct(current: number, prev: number) {
-  if (prev === 0) return current > 0 ? "+100%" : "0%";
-  const diff = ((current - prev) / prev) * 100;
-  const sign = diff >= 0 ? "+" : "";
-  return `${sign}${Math.round(diff)}%`;
-}
-
-function timeAgo(date: string) {
-  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (s < 60) return "Now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
 export default async function DashboardPage() {
-  const admin = await requireAdmin();
-  const scopedIds = await getScopedAppIds(admin);
-  const [allApps, allLicenses, allUsers, logs] = await Promise.all([
-    store.listApps(),
-    store.listLicenses({ limit: 5000 }),
-    store.listAppUsers({ limit: 5000 }),
-    store.listLogs({ limit: 20 }),
-  ]);
-  const apps = scopedIds === null ? allApps : allApps.filter((a) => scopedIds.includes(a.id));
-  const licenses = scopedIds === null ? allLicenses : allLicenses.filter((l) => scopedIds.includes(l.app_id));
-  const users = scopedIds === null ? allUsers : allUsers.filter((u) => scopedIds.includes(u.app_id));
+  const me = await requireAdmin();
+  const fullAdmin = await store.getAdminById(me.id);
+  const scopedIds = await getScopedAppIds(me);
 
-  const activeLicenses = licenses.filter((l) => l.status === "used").length;
-  const activeUsers = users.filter((u) => u.last_login && new Date(u.last_login).getTime() > Date.now() - 7 * 86400000).length;
-  const activeSessions = logs.filter((l) => (l.message || "").toLowerCase().includes("login") || (l.message || "").toLowerCase().includes("session")).length;
+  const [allApps, allLicenses, allUsers, allAdmins] = await Promise.all([
+    store.listApps(),
+    store.listLicenses({ limit: 10000 }),
+    store.listAppUsers({ limit: 10000 }),
+    store.listAdmins(),
+  ]);
+
+  // Filter apps, licenses and users belonging to this reseller
+  const apps = scopedIds === null ? allApps : allApps.filter((a) => scopedIds.includes(a.id));
+  
+  // Find sub-resellers created by this admin
+  const subResellers = allAdmins.filter((a) => a.created_by === me.id);
+  const subResellerIds = subResellers.map((sr) => sr.id);
+
+  // Licenses created by me or my sub-resellers
+  const myLicenses = allLicenses.filter((l) => l.created_by === me.id);
+  const subLicenses = allLicenses.filter((l) => l.created_by && subResellerIds.includes(l.created_by));
+  const totalLicensesCount = myLicenses.length + subLicenses.length;
+
+  // Active users registered with my licenses or my sub-resellers' licenses
+  const myLicenseUserIds = myLicenses.filter((l) => l.used_by).map((l) => l.used_by);
+  const subLicenseUserIds = subLicenses.filter((l) => l.used_by).map((l) => l.used_by);
+  
+  const activeUsers = allUsers.filter((u) => myLicenseUserIds.includes(u.id) || subLicenseUserIds.includes(u.id));
+  const activeUsersCount = activeUsers.length;
+
+  // Unique package names
+  const uniquePackages = new Set(
+    allLicenses
+      .filter((l) => l.app_id && (scopedIds === null || scopedIds.includes(l.app_id)))
+      .map((l) => l.package_name || "Bypass")
+  );
+  const packagesCount = uniquePackages.size || 2;
+
+  // Account Information details
+  const username = me.email.includes("@") ? me.email.split("@")[0] : me.email;
+  const capitalizedUsername = username.charAt(0).toUpperCase() + username.slice(1);
+  
+  const userLimit = 1000;
+  const remainingSlots = Math.max(0, userLimit - activeUsersCount);
+  const usePercentage = Math.min(100, Math.round((activeUsersCount / userLimit) * 100));
+
+  const createdDate = fullAdmin?.created_at
+    ? new Date(fullAdmin.created_at).toLocaleString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "—";
+
+  const lastAccess = new Date().toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const credits = typeof fullAdmin?.credits === "number" ? fullAdmin.credits : 0.0;
+  const isUnlimited = fullAdmin?.role === "developer" || fullAdmin?.role === "admin";
 
   const stats = [
-    { label: "Total Applications", value: apps.length, change: `+${Math.max(0, apps.length - 10)} this month`, up: true, icon: Box, color: "from-blue-500 to-indigo-500" },
-    { label: "Active Users", value: users.length, change: `+${Math.max(0, users.length - 1200)} this week`, up: true, icon: Users, color: "from-emerald-500 to-teal-500" },
-    { label: "Active Licenses", value: licenses.length, change: `+${Math.max(0, licenses.length - 3000)} this week`, up: true, icon: Key, color: "from-rose-500 to-pink-500" },
-    { label: "Active Sessions", value: activeSessions, change: `+${Math.max(0, activeSessions - 800)} this week`, up: true, icon: Activity, color: "from-amber-500 to-orange-500" },
+    {
+      label: "USUARIOS ACTIVOS",
+      value: activeUsersCount,
+      icon: Users,
+      color: "border-l-4 border-green-500 bg-green-500/5 text-green-400",
+      sub: "Clientes registrados"
+    },
+    {
+      label: "CREDITOS DISPONIBLES",
+      value: isUnlimited ? "Ilimitado" : credits.toFixed(1),
+      icon: Coins,
+      color: "border-l-4 border-blue-500 bg-blue-500/5 text-blue-400",
+      sub: isUnlimited ? "Plan sin costo" : "Monedas de generación"
+    },
+    {
+      label: "COSTO BASE X USUARIO",
+      value: "1.0",
+      icon: Coins,
+      color: "border-l-4 border-orange-500 bg-orange-500/5 text-orange-400",
+      sub: "Créditos por licencia"
+    },
+    {
+      label: "PAQUETES",
+      value: packagesCount,
+      icon: Sparkles,
+      color: "border-l-4 border-purple-500 bg-purple-500/5 text-purple-400",
+      sub: "Suscripciones activas"
+    }
   ];
 
-  const sortedApps = [...apps].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  const recentSessions = [...logs]
-    .filter((l) => (l.message || "").toLowerCase().includes("login") || (l.message || "").toLowerCase().includes("register") || (l.message || "").toLowerCase().includes("init"))
-    .slice(0, 4);
-
-  const days = ["May 12", "May 13", "May 14", "May 15", "May 16", "May 17", "May 18"];
-  const chartData = [350, 480, 700, 520, 720, 690, Math.max(800, licenses.length * 8)];
-  const maxVal = Math.max(...chartData);
-
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto text-zinc-300">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-zinc-800/60 pb-5">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-sm text-text-muted mt-0.5">Welcome back, <span className="text-text font-medium">{admin.email}</span></p>
+          <h1 className="text-xl font-bold flex items-center gap-2 text-zinc-100">
+            <LayoutDashboard className="w-5 h-5 text-emerald-400" />
+            Dashboard
+          </h1>
+          <p className="text-xs text-zinc-500 mt-1">Resumen general y estado de tu cuenta de reseller.</p>
         </div>
-        <Link href="/dashboard/apps" className="btn-primary text-sm">+ New Application</Link>
+        <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+          <span>Consola</span>
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-700" />
+          <span className="text-emerald-400 font-medium">Dashboard</span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <div key={s.label} className="card hover:border-border-light transition group">
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center shadow-lg`}>
-                <s.icon className="w-5 h-5 text-white" />
-              </div>
+          <div key={s.label} className={`rounded-lg border border-zinc-800/80 p-5 flex items-center justify-between ${s.color}`}>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{s.label}</div>
+              <div className="text-2xl font-black mt-1 font-mono">{s.value}</div>
+              <div className="text-[10px] text-zinc-500 mt-1">{s.sub}</div>
             </div>
-            <div className="text-3xl font-bold font-mono tracking-tight">{s.value.toLocaleString()}</div>
-            <div className="text-xs text-text-muted mt-1">{s.label}</div>
-            <div className="text-[11px] text-success mt-1.5 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              {s.change}
-            </div>
+            <s.icon className="w-8 h-8 opacity-40 shrink-0" />
           </div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="card lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">My Applications</h2>
-            <Link href="/dashboard/apps" className="text-xs px-2.5 py-1 rounded-md border border-border text-text-muted hover:bg-bg-hover hover:text-text transition">View All</Link>
+      {/* Account Info Box */}
+      <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 p-6 space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-emerald-400" />
+            Información de la cuenta
+          </h2>
+          <span className="flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
+            Activo
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 text-sm">
+          <div>
+            <div className="text-zinc-500 text-xs font-semibold mb-1 uppercase tracking-wider">Usuario</div>
+            <div className="font-semibold text-zinc-200">{capitalizedUsername}</div>
           </div>
-          {sortedApps.length === 0 ? (
-            <p className="text-sm text-text-dim py-8 text-center">No applications yet. <Link href="/dashboard/apps" className="text-accent-glow">Create one →</Link></p>
-          ) : (
-            <div className="divide-y divide-border/50">
-              {sortedApps.slice(0, 5).map((a) => {
-                const licCount = licenses.filter((l) => l.app_id === a.id).length;
-                const usrCount = users.filter((u) => u.app_id === a.id).length;
-                const Icon = a.status === "paused" ? Pause : Box;
-                const isPaused = a.status === "paused";
-                const isActive = a.status === "active";
-                return (
-                  <div key={a.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 rounded-md bg-bg-secondary border border-border flex items-center justify-center shrink-0">
-                        <Icon className="w-5 h-5 text-text-muted" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm truncate">{a.name}</div>
-                        <div className="text-[11px] text-text-dim font-mono">v{a.version} · {usrCount} users · {licCount} licenses</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isActive && <span className="px-2 py-0.5 rounded-md text-[10px] bg-success/15 text-success border border-success/30 font-semibold uppercase tracking-wider">Active</span>}
-                      {isPaused && <span className="px-2 py-0.5 rounded-md text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/30 font-semibold uppercase tracking-wider">Paused</span>}
-                      <Link href={`/dashboard/apps/${a.id}`} className="p-1.5 rounded-md text-text-muted hover:bg-bg-hover hover:text-text">
-                        <MoreVertical className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
+          <div>
+            <div className="text-zinc-500 text-xs font-semibold mb-1 uppercase tracking-wider">Límite Usuarios</div>
+            <div className="font-semibold text-zinc-200 font-mono">
+              {activeUsersCount} / {userLimit}
             </div>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Recent Sessions</h2>
-            <Link href="/dashboard/sessions" className="text-xs px-2.5 py-1 rounded-md border border-border text-text-muted hover:bg-bg-hover hover:text-text transition">View All</Link>
           </div>
-          {recentSessions.length === 0 ? (
-            <p className="text-sm text-text-dim py-8 text-center">No sessions yet</p>
-          ) : (
-            <div className="divide-y divide-border/50">
-              {recentSessions.map((s, i) => (
-                <div key={s.id || i} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <Monitor className="w-4 h-4 text-text-muted shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{s.message?.split(":")[0] || "Session"}</div>
-                      <div className="text-[10px] text-text-dim font-mono">192.168.1.{100 + i}</div>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-[11px] text-text-dim">{timeAgo(s.created_at)}</div>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-success/15 text-success border border-success/30 font-semibold uppercase tracking-wider inline-block mt-0.5">Active</span>
-                  </div>
-                </div>
-              ))}
+          <div>
+            <div className="text-zinc-500 text-xs font-semibold mb-1 uppercase tracking-wider">Licencias</div>
+            <div className="font-semibold text-zinc-200 font-mono">
+              {totalLicensesCount} <span className="text-zinc-500 text-xs">(tuya + sub)</span>
             </div>
-          )}
+          </div>
+          <div>
+            <div className="text-zinc-500 text-xs font-semibold mb-1 uppercase tracking-wider">Restante</div>
+            <div className="font-semibold text-zinc-200 font-mono">
+              {remainingSlots} <span className="text-zinc-500 text-xs">({100 - usePercentage}%)</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-zinc-500 text-xs font-semibold mb-1 uppercase tracking-wider">Creada</div>
+            <div className="font-semibold text-zinc-200 font-mono text-xs">{createdDate}</div>
+          </div>
+          <div>
+            <div className="text-zinc-500 text-xs font-semibold mb-1 uppercase tracking-wider">Último Acceso</div>
+            <div className="font-semibold text-zinc-200 font-mono text-xs">{lastAccess}</div>
+          </div>
+        </div>
+
+        {/* User limit progress bar */}
+        <div className="space-y-2 pt-2">
+          <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/40">
+            <div 
+              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-400 transition-all duration-500 shadow-sm shadow-emerald-500/50"
+              style={{ width: `${usePercentage}%` }}
+            />
+          </div>
+          <div className="text-right text-[10px] font-mono text-zinc-500">
+            {usePercentage}% del límite de usuarios en uso
+          </div>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="card lg:col-span-2">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-semibold">License Statistics</h2>
-            <select className="text-xs bg-bg-secondary border border-border rounded-md px-2.5 py-1 text-text-muted">
-              <option>7 Days</option>
-              <option>30 Days</option>
-              <option>90 Days</option>
-            </select>
+      {/* Quick Access panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/20 p-5 space-y-4">
+          <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            Acciones Rápidas
+          </h3>
+          <p className="text-xs text-zinc-500">Accesos directos a las herramientas de administración frecuentes.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/dashboard/licenses" className="flex items-center justify-between p-3 rounded bg-zinc-900/40 border border-zinc-800/40 hover:bg-zinc-900 hover:border-zinc-700 transition text-xs font-medium">
+              <span>Administrar Licencias</span>
+              <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+            </Link>
+            <Link href="/dashboard/sub-resellers" className="flex items-center justify-between p-3 rounded bg-zinc-900/40 border border-zinc-800/40 hover:bg-zinc-900 hover:border-zinc-700 transition text-xs font-medium">
+              <span>Crear Sub-reseller</span>
+              <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+            </Link>
           </div>
-          <div className="flex items-end justify-between gap-2 h-48 px-2">
-            {chartData.map((v, i) => {
-              const h = (v / maxVal) * 100;
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                  <div className="text-[10px] text-text-dim opacity-0 group-hover:opacity-100 transition">{v}</div>
-                  <div className="w-full bg-bg-secondary rounded-t-md relative" style={{ height: "100%" }}>
-                    <div
-                      className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-accent to-blue-500 rounded-t-md transition-all group-hover:from-accent-glow"
-                      style={{ height: `${h}%` }}
-                    />
-                  </div>
-                  <div className="text-[10px] text-text-dim">{days[i]}</div>
+        </div>
+
+        <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/20 p-5 space-y-4">
+          <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-emerald-400" />
+            Información del Desarrollador
+          </h3>
+          <p className="text-xs text-zinc-500">Aplicaciones administradas activas en el sistema.</p>
+          <div className="divide-y divide-zinc-800/50">
+            {apps.length === 0 ? (
+              <div className="text-xs text-zinc-500 py-2">No hay aplicaciones asignadas.</div>
+            ) : (
+              apps.slice(0, 3).map((app) => (
+                <div key={app.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                  <div className="text-xs font-medium text-zinc-300">{app.name}</div>
+                  <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono">
+                    v{app.version}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="card">
-          <h2 className="font-semibold mb-4">System Overview</h2>
-          <div className="space-y-3.5">
-            <SysRow icon={Server} label="API Status" status="ok" value="Operational" />
-            <SysRow icon={Database} label="Database" status="ok" value="Connected" />
-            <SysRow icon={Cpu} label="Server Load" percent={23} />
-            <SysRow icon={Activity} label="Memory Usage" percent={Math.min(95, Math.max(15, Math.round(licenses.length / 50)))} />
-            <SysRow icon={HardDrive} label="Disk Usage" percent={Math.min(95, Math.max(10, Math.round(users.length / 20)))} />
+              ))
+            )}
           </div>
         </div>
       </div>
-
-      <footer className="text-center text-[11px] text-text-dim py-3 border-t border-border/50">
-        © 2026 Guate Xiter. All rights reserved. · v1.0.0
-      </footer>
-    </div>
-  );
-}
-
-function SysRow({ icon: Icon, label, status, value, percent }: { icon: any; label: string; status?: "ok" | "warn" | "err"; value?: string; percent?: number }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between text-[12px] mb-1.5">
-        <div className="flex items-center gap-2 text-text-muted">
-          <Icon className="w-3.5 h-3.5" />
-          {label}
-        </div>
-        {value && (
-          <span className={status === "ok" ? "text-success" : "text-danger"}>{value}</span>
-        )}
-        {typeof percent === "number" && (
-          <span className="text-text font-mono">{percent}%</span>
-        )}
-      </div>
-      {typeof percent === "number" && (
-        <div className="h-1.5 bg-bg-secondary rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full ${percent > 80 ? "bg-gradient-to-r from-red-500 to-rose-500" : "bg-gradient-to-r from-accent to-blue-500"}`}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-      )}
     </div>
   );
 }

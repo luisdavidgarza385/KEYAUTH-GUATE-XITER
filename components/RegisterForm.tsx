@@ -2,24 +2,27 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import styles from "@/app/login/auth.module.css";
 
 export function RegisterForm() {
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!email.includes("@") || email.length < 3) {
-      setError("Please enter a valid email address");
+    if (username.length < 3) {
+      setError("Username must be at least 3 characters");
       return;
     }
     if (password.length < 8) {
@@ -31,16 +34,17 @@ export function RegisterForm() {
       return;
     }
     if (!agree) {
-      setError("You must agree to the Terms and Privacy Policy");
+      setError("You must agree to the Terms of Service");
       return;
     }
 
     setLoading(true);
     try {
+      // Send username as the main login identifier in the email field
       const res = await fetch("/api/admin/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: username, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -57,50 +61,99 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={onSubmit}>
-      <div className={styles.field}>
-        <Mail className="absolute" />
-        <input
-          type="email"
-          className={styles.input}
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-        />
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <label className={styles.inputLabel}>Username</label>
+        <div className={styles.fieldWrapper}>
+          <input
+            type="text"
+            className={styles.premiumInput}
+            placeholder="Choose a username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+        </div>
       </div>
-      <div className={styles.field}>
-        <Lock />
-        <input
-          type="password"
-          className={styles.input}
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
+
+      <div>
+        <label className={styles.inputLabel}>Email</label>
+        <div className={styles.fieldWrapper}>
+          <input
+            type="email"
+            className={styles.premiumInput}
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
       </div>
-      <div className={styles.field}>
-        <Lock />
-        <input
-          type="password"
-          className={styles.input}
-          placeholder="Confirm Password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
+
+      <div>
+        <label className={styles.inputLabel}>Password</label>
+        <div className={styles.fieldWrapper}>
+          <input
+            type={showPassword ? "text" : "password"}
+            className={styles.premiumInput}
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className={styles.eyeBtn}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
-      <label className={styles.terms}>
-        <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-        <span>I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link></span>
-      </label>
+
+      <div>
+        <label className={styles.inputLabel}>Confirm Password</label>
+        <div className={styles.fieldWrapper}>
+          <input
+            type={showConfirm ? "text" : "password"}
+            className={styles.premiumInput}
+            placeholder="Confirm your password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirm(!showConfirm)}
+            className={styles.eyeBtn}
+          >
+            {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <label className={styles.terms}>
+          <input
+            type="checkbox"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+            className={styles.checkbox}
+          />
+          <span>I agree to the <Link href="/terms" className={styles.purpleLink}>Terms of Service</Link></span>
+        </label>
+      </div>
+
       {error && <div className={styles.error}>{error}</div>}
-      <button type="submit" className={styles.btn} disabled={loading}>
-        {loading ? <span className={styles.spinner} /> : <>Register <span className={styles.arrow}>→</span></>}
+
+      <button type="submit" className={styles.premiumBtn} disabled={loading}>
+        {loading ? (
+          <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading...</>
+        ) : (
+          "Register"
+        )}
       </button>
     </form>
   );

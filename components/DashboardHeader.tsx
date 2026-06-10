@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Bell, Search, ChevronDown, LogOut, User as UserIcon, Settings } from "lucide-react";
 
-export function DashboardHeader({ email, role }: { email: string; role: string }) {
+export function DashboardHeader({ email, role, apps }: { email: string; role: string; apps: { id: string; name: string }[] }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

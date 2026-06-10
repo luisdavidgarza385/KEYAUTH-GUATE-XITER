@@ -1,7 +1,8 @@
 import { store } from "@/lib/store";
 import { requireAdmin, getScopedAppIds } from "@/lib/auth";
-import { Users, Search, Filter, LayoutGrid, Key, Clock, RotateCcw, FileText, Trash2, Shield } from "lucide-react";
+import { Users, Search, Filter, LayoutGrid, Clock, RotateCcw, FileText, Trash2 } from "lucide-react";
 import { UserCardMenu } from "@/components/UserCardMenu";
+import { CreateUserInlineButton } from "@/components/CreateMenu";
 import Link from "next/link";
 import { cookies } from "next/headers";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams: { app?: string; banned?: string };
+  searchParams: { app?: string; banned?: string; perPage?: string; page?: string };
 }) {
   const me = await requireAdmin();
   const scopedIds = await getScopedAppIds(me);
@@ -30,7 +31,13 @@ export default async function UsersPage({
     limit: 200,
   });
   const filteredUsers = scopedIds === null ? users : users.filter((u) => scopedIds.includes(u.app_id));
-  const appsById = new Map(apps.map((a) => [a.id, a]));
+
+  const perPage = parseInt(searchParams.perPage || "10");
+  const page = parseInt(searchParams.page || "1");
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / perPage));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * perPage;
+  const pagedUsers = filteredUsers.slice(startIndex, startIndex + perPage);
 
   return (
     <div>
@@ -55,7 +62,7 @@ export default async function UsersPage({
           <div className="ml-auto flex items-center gap-2">
             <ActionIcon Icon={Filter} title="Filter" />
             <ActionIcon Icon={LayoutGrid} title="Grid view" active />
-            <ActionIcon Icon={Key} title="By key" />
+            <CreateUserInlineButton apps={apps} defaultAppId={activeAppId} className="w-9 h-9 rounded-md flex items-center justify-center border border-accent/40 bg-accent/10 text-accent-glow hover:bg-accent/20 transition" />
             <ActionIcon Icon={Clock} title="By date" />
             <ActionIcon Icon={RotateCcw} title="Reset" />
             <ActionIcon Icon={FileText} title="Export" />
@@ -81,18 +88,28 @@ export default async function UsersPage({
         <div className="flex items-center gap-2 text-sm text-text-muted">
           <input type="checkbox" className="accent-accent" />
           <span>Select All</span>
-          <span className="ml-3 text-text-dim">{filteredUsers.length} total</span>
+          <span className="text-text-dim ml-3">Mostrar:</span>
+          {["10", "100", "300"].map((n) => (
+            <Link
+              key={n}
+              href={`/dashboard/users?app=${activeAppId || ""}&banned=${searchParams.banned || ""}&perPage=${n}&page=1`}
+              className={`px-2 py-0.5 rounded border text-xs transition ${perPage === parseInt(n) ? "bg-accent/10 border-accent/40 text-accent-glow" : "border-border text-text-muted hover:text-text"}`}
+            >
+              {n}
+            </Link>
+          ))}
+          <span className="ml-auto text-text-dim">{filteredUsers.length} total</span>
         </div>
 
         {filteredUsers.length === 0 ? (
           <div className="card text-center py-16">
             <Users className="w-10 h-10 text-text-dim mx-auto mb-3" />
             <p className="text-text-muted mb-1">No users yet</p>
-            <p className="text-xs text-text-dim">Use the <span className="text-text">Create</span> button at the top right to create a user for one of your apps.</p>
+            <p className="text-xs text-text-dim">Click the <span className="text-text">Key</span> button above to create a user.</p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredUsers.map((u) => {
+            {pagedUsers.map((u) => {
               const isPaused = u.hwid === "PAUSED";
               const status = u.banned ? "banned" : isPaused ? "paused" : "active";
               return (
@@ -106,7 +123,7 @@ export default async function UsersPage({
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <StatusBadge status={status} />
-                      <UserCardMenu user={{ id: u.id, banned: u.banned, paused: isPaused, username: u.username }} />
+                      <UserCardMenu user={{ id: u.id, banned: u.banned, paused: isPaused, username: u.username, balance: u.balance }} />
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
@@ -114,7 +131,7 @@ export default async function UsersPage({
                     <Field label="Last Login" value={u.last_login ? formatDate(u.last_login) : "Never"} />
                     <Field label="IP" value={u.ip || "—"} mono />
                     <Field label="2FA" value={u.hwid && u.hwid !== "PAUSED" ? "Yes" : "No"} />
-                    <Field label="Cooldown" value="N/A" />
+                    <Field label="Saldo / Saldo" value={u.balance !== undefined ? `$${u.balance.toFixed(2)}` : "$0.00"} />
                     <Field label="HWID Affected" value={u.hwid && u.hwid !== "PAUSED" ? "Yes" : "No"} />
                   </div>
                 </div>
@@ -123,7 +140,7 @@ export default async function UsersPage({
           </div>
         )}
 
-        <PaginationFooter count={filteredUsers.length} />
+        <PaginationFooter count={filteredUsers.length} perPage={perPage} page={currentPage} totalPages={totalPages} activeAppId={activeAppId || ""} banned={searchParams.banned || ""} />
       </div>
     </div>
   );
@@ -186,16 +203,23 @@ function FilterLink({ href, label, active }: { href: string; label: string; acti
   );
 }
 
-function PaginationFooter({ count }: { count: number }) {
+function PaginationFooter({ count, perPage, page, totalPages, activeAppId, banned }: { count: number; perPage: number; page: number; totalPages: number; activeAppId: string; banned: string }) {
+  const base = `/dashboard/users?app=${activeAppId}&banned=${banned}&perPage=${perPage}`;
   return (
     <div className="flex items-center justify-between text-sm text-text-muted pt-2">
-      <button className="px-3 py-1.5 rounded-md border border-border hover:border-border-light disabled:opacity-40" disabled>
+      <Link
+        href={page > 1 ? `${base}&page=${page - 1}` : "#"}
+        className={`px-3 py-1.5 rounded-md border transition ${page <= 1 ? "border-border opacity-40 pointer-events-none" : "border-border hover:border-border-light"}`}
+      >
         Previous
-      </button>
-      <span>Showing page 1 of 1</span>
-      <button className="px-3 py-1.5 rounded-md border border-border hover:border-border-light disabled:opacity-40" disabled>
+      </Link>
+      <span>Page {page} of {totalPages}</span>
+      <Link
+        href={page < totalPages ? `${base}&page=${page + 1}` : "#"}
+        className={`px-3 py-1.5 rounded-md border transition ${page >= totalPages ? "border-border opacity-40 pointer-events-none" : "border-border hover:border-border-light"}`}
+      >
         Next
-      </button>
+      </Link>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { store } from "@/lib/store";
+import { signSessionValue } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,8 @@ export async function POST(req: NextRequest) {
     if (password.length < 8) {
       return json({ success: false, message: "Password must be at least 8 characters" }, 400);
     }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      return json({ success: false, message: "Invalid email" }, 400);
+    if (email.length < 3) {
+      return json({ success: false, message: "Username or email must be at least 3 characters" }, 400);
     }
 
     const existing = await store.getAdminByEmail(email);
@@ -39,9 +40,7 @@ export async function POST(req: NextRequest) {
     const hash = await bcrypt.hash(password, 10);
     const admin = await store.createAdmin({ email, password_hash: hash, role });
 
-    const cookieValue = Buffer.from(
-      JSON.stringify({ id: admin.id, email: admin.email, role: admin.role })
-    ).toString("base64");
+    const cookieValue = signSessionValue({ id: admin.id, email: admin.email, role: admin.role as "admin" | "seller" | "developer" });
 
     const res = json({ success: true, data: { id: admin.id, email: admin.email, role: admin.role } });
     res.cookies.set("ka_admin_session", cookieValue, {
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
     });
     return res;
-  } catch (e: any) {
-    return json({ success: false, message: e?.message || "Server error" }, 500);
+  } catch {
+    return json({ success: false, message: "Server error" }, 500);
   }
 }

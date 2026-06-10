@@ -4,10 +4,14 @@ import { useRouter } from "next/navigation";
 import { Key, Trash2, Plus } from "lucide-react";
 import { CreateMenu, BulkDeleteLicensesModal } from "./CreateMenu";
 
-export function LicensesPageActions({ apps, filteredAppId }: { apps: { id: string; name: string }[]; filteredAppId?: string }) {
+export function LicensesPageActions({ apps, filteredAppId, role, subscriptionEnd }: { apps: { id: string; name: string }[]; filteredAppId?: string; role: string; subscriptionEnd: string | null }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const router = useRouter();
+
+  const isSeller = role === "seller";
+  const hasSub = subscriptionEnd ? new Date(subscriptionEnd).getTime() > Date.now() : false;
+  const forcePrefix = isSeller && !hasSub;
 
   return (
     <>
@@ -26,7 +30,7 @@ export function LicensesPageActions({ apps, filteredAppId }: { apps: { id: strin
         <Trash2 className="w-4 h-4" />
       </button>
       {createOpen && (
-        <CreateLicenseInline apps={apps} defaultAppId={filteredAppId} onClose={() => setCreateOpen(false)} />
+        <CreateLicenseInline apps={apps} defaultAppId={filteredAppId} onClose={() => setCreateOpen(false)} forcePrefix={forcePrefix} />
       )}
       {bulkOpen && (
         <BulkDeleteLicensesModal apps={apps} onClose={() => setBulkOpen(false)} />
@@ -35,9 +39,10 @@ export function LicensesPageActions({ apps, filteredAppId }: { apps: { id: strin
   );
 }
 
-function CreateLicenseInline({ apps, defaultAppId, onClose }: { apps: { id: string; name: string }[]; defaultAppId?: string; onClose: () => void }) {
+function CreateLicenseInline({ apps, defaultAppId, onClose, forcePrefix }: { apps: { id: string; name: string }[]; defaultAppId?: string; onClose: () => void; forcePrefix?: boolean }) {
   const [appId, setAppId] = useState(defaultAppId || apps[0]?.id || "");
   const [count, setCount] = useState(1);
+  const [prefix, setPrefix] = useState(forcePrefix ? "KEYAUTHPRO" : "Guate Xiter");
   const [mask, setMask] = useState("******_******_******_******_******_******");
   const [lower, setLower] = useState(true);
   const [upper, setUpper] = useState(true);
@@ -62,7 +67,7 @@ function CreateLicenseInline({ apps, defaultAppId, onClose }: { apps: { id: stri
     const res = await fetch("/api/admin/licenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appId, count, durationDays: duration, level, maxUses: 1, hwidLock, ipLock }),
+      body: JSON.stringify({ appId, count, durationDays: duration, level, maxUses: 1, hwidLock, ipLock, prefix }),
     });
     setLoading(false);
     const data = await res.json();
@@ -114,6 +119,13 @@ function CreateLicenseInline({ apps, defaultAppId, onClose }: { apps: { id: stri
                 <label className="text-[11px] font-medium uppercase tracking-wider text-text-muted mb-1.5 block">Importe de la licencia *</label>
                 <input type="number" min={1} max={500} className="input" value={count} onChange={(e) => setCount(parseInt(e.target.value) || 1)} />
               </div>
+              {forcePrefix && (
+                <div>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-text-muted mb-1.5 block">Prefijo (fijo para sellers)</label>
+                  <input className="input font-mono bg-bg-secondary/50" value="KEYAUTHPRO" disabled />
+                  <p className="text-[10px] text-text-dim mt-1">Compra una suscripción para cambiar el prefijo.</p>
+                </div>
+              )}
               <div>
                 <label className="text-[11px] font-medium uppercase tracking-wider text-text-muted mb-1.5 block">Máscara de licencia *</label>
                 <input className="input font-mono" value={mask} onChange={(e) => setMask(e.target.value)} />

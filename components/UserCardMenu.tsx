@@ -1,9 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MoreVertical, Edit, Ban, Pause, RotateCcw, Trash2, Check } from "lucide-react";
+import { ChevronDown, Edit, Ban, Pause, RotateCcw, Trash2, Check } from "lucide-react";
 
-export function UserCardMenu({ user }: { user: { id: string; banned: boolean; paused?: boolean; username: string } }) {
+export function UserCardMenu({ user }: { user: { id: string; banned: boolean; paused?: boolean; username: string; balance?: number } }) {
   const [open, setOpen] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showBan, setShowBan] = useState(false);
@@ -11,6 +11,7 @@ export function UserCardMenu({ user }: { user: { id: string; banned: boolean; pa
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [balance, setBalance] = useState(user.balance || 0);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -62,10 +63,10 @@ export function UserCardMenu({ user }: { user: { id: string; banned: boolean; pa
     <div className="relative" ref={ref}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="p-1 rounded hover:bg-bg-hover text-text-muted hover:text-text"
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs border border-border text-text-muted hover:bg-bg-hover hover:text-text transition"
         aria-label="Actions"
       >
-        <MoreVertical className="w-4 h-4" />
+        Acciones <ChevronDown className="w-3 h-3" />
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-30 min-w-[180px] rounded-md border border-border bg-bg-card shadow-xl overflow-hidden">
@@ -89,21 +90,25 @@ export function UserCardMenu({ user }: { user: { id: string; banned: boolean; pa
       {showEdit && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4" onClick={() => setShowEdit(false)}>
           <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-3">Edit user — {user.username}</h3>
-            <div className="space-y-3">
+            <h3 className="font-semibold mb-3 text-zinc-100">Editar usuario — {user.username}</h3>
+            <div className="space-y-4">
               <div>
-                <label className="label">New password (leave empty to keep)</label>
-                <input className="input" type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password" />
+                <label className="label text-xs uppercase text-zinc-500 font-bold">Nueva Contraseña (vacío para mantener)</label>
+                <input className="input" type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nueva contraseña" />
+              </div>
+              <div>
+                <label className="label text-xs uppercase text-zinc-500 font-bold">Saldo / Crédito del Usuario</label>
+                <input className="input" type="number" min={0} value={balance} onChange={(e) => setBalance(parseFloat(e.target.value) || 0)} placeholder="0.0" />
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowEdit(false)} className="btn-secondary">Cancel</button>
+            <div className="flex justify-end gap-2 mt-5 border-t border-zinc-800/60 pt-4">
+              <button onClick={() => setShowEdit(false)} className="btn-secondary">Cancelar</button>
               <button
-                onClick={() => patch({ password: password || undefined })}
+                onClick={() => patch({ password: password || undefined, balance })}
                 className="btn-primary"
                 disabled={busy}
               >
-                {busy ? "Saving..." : "Save"}
+                {busy ? "Guardando..." : "Guardar"}
               </button>
             </div>
           </div>

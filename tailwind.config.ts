@@ -9,28 +9,28 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          DEFAULT: "#0a0a0f",
-          secondary: "#12121a",
-          card: "#16161f",
-          hover: "#1c1c26",
+          DEFAULT: "rgb(var(--bg-rgb) / <alpha-value>)",
+          secondary: "rgb(var(--bg-secondary-rgb) / <alpha-value>)",
+          card: "rgb(var(--bg-card-rgb) / <alpha-value>)",
+          hover: "rgb(var(--bg-hover-rgb) / <alpha-value>)",
         },
         border: {
-          DEFAULT: "#27272f",
-          light: "#3a3a44",
+          DEFAULT: "rgb(var(--border-rgb) / <alpha-value>)",
+          light: "rgb(var(--border-light-rgb) / <alpha-value>)",
         },
         text: {
-          DEFAULT: "#e5e5e5",
-          muted: "#9ca3af",
-          dim: "#6b7280",
+          DEFAULT: "rgb(var(--text-rgb) / <alpha-value>)",
+          muted: "rgb(var(--text-muted-rgb) / <alpha-value>)",
+          dim: "rgb(var(--text-dim-rgb) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "#6366f1",
-          hover: "#4f46e5",
-          glow: "#818cf8",
+          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover-rgb) / <alpha-value>)",
+          glow: "rgb(var(--accent-glow-rgb) / <alpha-value>)",
         },
-        success: "#10b981",
-        danger: "#ef4444",
-        warning: "#f59e0b",
+        success: "rgb(var(--success-rgb) / <alpha-value>)",
+        danger: "rgb(var(--danger-rgb) / <alpha-value>)",
+        warning: "rgb(var(--warning-rgb) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],

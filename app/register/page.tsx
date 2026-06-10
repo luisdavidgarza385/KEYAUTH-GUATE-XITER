@@ -12,13 +12,13 @@ export default function RegisterPage() {
         <div className={styles.brandIcon}>
           <ShieldCheck strokeWidth={1.5} />
         </div>
-        <h1 className={styles.title}>Create Account</h1>
-        <p className={styles.subtitle}>Create your account to get started</p>
+        <h1 className={styles.title}>Create your account</h1>
+        <p className={styles.subtitle}>Fill in the details to get started</p>
         <div className={styles.card}>
           <RegisterForm />
         </div>
         <p className={styles.footer}>
-          Already have an account?<Link href="/login">Sign in</Link>
+          Already have an account?<Link href="/login"> Login here</Link>
         </p>
       </div>
     </div>

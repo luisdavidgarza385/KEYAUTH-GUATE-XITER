@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
 
     if (!appId || !username || !password)
       return { status: 400, data: { success: false, message: "appId, username, password required" } };
-    if (password.length < 6)
-      return { status: 400, data: { success: false, message: "Password must be at least 6 characters" } };
-    if (username.length < 3 || username.length > 32)
-      return { status: 400, data: { success: false, message: "Username must be 3-32 characters" } };
+    if (password.length < 1)
+      return { status: 400, data: { success: false, message: "Password must be at least 1 character" } };
+    if (username.length < 1 || username.length > 32)
+      return { status: 400, data: { success: false, message: "Username must be 1-32 characters" } };
 
     const app = await store.getAppById(appId);
     if (!app) return { status: 404, data: { success: false, message: "App not found" } };

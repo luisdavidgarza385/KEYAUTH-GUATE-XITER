@@ -204,7 +204,7 @@ function CreateUserModal({ apps, onClose, defaultAppId }: { apps: App[]; onClose
   );
 }
 
-function CreateLicenseModal({ apps, onClose, defaultAppId }: { apps: App[]; onClose: () => void; defaultAppId?: string }) {
+function CreateLicenseModal({ apps, onClose, defaultAppId, forcePrefix }: { apps: App[]; onClose: () => void; defaultAppId?: string; forcePrefix?: boolean }) {
   const router = useRouter();
   const [appId, setAppId] = useState(defaultAppId || apps[0]?.id || "");
   const [packageName, setPackageName] = useState("Bypass");
@@ -213,7 +213,7 @@ function CreateLicenseModal({ apps, onClose, defaultAppId }: { apps: App[]; onCl
   const [suffix, setSuffix] = useState("****-****-****-****");
   const [level, setLevel] = useState(1);
   const [note, setNote] = useState("");
-  const [unit, setUnit] = useState<"days" | "months" | "years">("days");
+  const [unit, setUnit] = useState<"days" | "months" | "years" | "lifetime">("days");
   const [duration, setDuration] = useState(1);
   const [hwidLock, setHwidLock] = useState(false);
   const [ipLock, setIpLock] = useState(false);
@@ -222,24 +222,31 @@ function CreateLicenseModal({ apps, onClose, defaultAppId }: { apps: App[]; onCl
   const [generated, setGenerated] = useState<string[] | null>(null);
   const [copied, setCopied] = useState(false);
 
-  function previewKey(): string {
-    if (!suffix.trim()) return prefix;
-    const segs = suffix.split("-").map((seg) =>
-      seg.replace(/\*/g, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(Math.floor(Math.random() * 26)))
-    );
-    return prefix ? `${prefix}-${segs.join("-")}` : segs.join("-");
-  }
-
   async function submit() {
     setErr(null);
     if (!appId) { setErr("Application required"); return; }
-    if (count < 1 || count > 500) { setErr("Count must be between 1 and 500"); return; }
-    if (duration < 1) { setErr("Duration must be at least 1"); return; }
+    if (count < 1 || count > 500) { setErr("Cantidad debe ser entre 1 y 500"); return; }
+    if (duration < 1 && unit !== "lifetime") { setErr("Duración inválida"); return; }
+    
     setLoading(true);
+    const durationDays = unit === "lifetime" ? 36500 : duration;
+    
     const res = await fetch("/api/admin/licenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appId, count, durationDays: duration, level, maxUses: 1, hwidLock, ipLock, prefix, suffix, packageName, note }),
+      body: JSON.stringify({
+        appId,
+        count,
+        durationDays,
+        level,
+        maxUses: 1,
+        hwidLock,
+        ipLock,
+        prefix,
+        suffix,
+        packageName,
+        note
+      }),
     });
     setLoading(false);
     const data = await res.json();
@@ -258,90 +265,117 @@ function CreateLicenseModal({ apps, onClose, defaultAppId }: { apps: App[]; onCl
   return (
     <ModalShell title="Generar licencias" onClose={onClose} width="md">
       {generated ? (
-        <div>
-          <p className="text-xs text-text-muted mb-3">Copy and save them now — they won&apos;t be shown again.</p>
-          <div className="bg-bg-secondary border border-border rounded p-3 max-h-64 overflow-y-auto font-mono text-xs space-y-1 mb-4">
+        <div className="space-y-4">
+          <p className="text-xs text-zinc-400 mb-3">Copia y guarda las licencias ahora — no se volverán a mostrar.</p>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs text-emerald-400 space-y-1 mb-4 select-all">
             {generated.map((k) => <div key={k}>{k}</div>)}
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={copyAll} className="btn-secondary text-sm">
-              {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />} Copy all
+              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />} Copiar todas
             </button>
-            <button onClick={onClose} className="btn-primary text-sm">Done</button>
+            <button onClick={onClose} className="btn-primary text-sm">Listo</button>
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4 text-zinc-300">
+          <div className="text-[11px] font-bold text-zinc-500 uppercase -mt-2">
+            Plan: <span className="text-emerald-400">Ilimitado (sin costo)</span>
+          </div>
+          
+          <div className="h-px bg-zinc-800/80 my-2" />
+
+          <div>
+            <FieldLabel required>Aplicación</FieldLabel>
+            <select className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 placeholder:text-zinc-600 px-3 py-2 rounded-lg text-sm outline-none focus:border-emerald-500/50 transition" value={appId} onChange={(e) => setAppId(e.target.value)}>
+              {apps.map((a) => <option key={a.id} value={a.id} className="bg-zinc-950">{a.name}</option>)}
+            </select>
+          </div>
+
           <div>
             <FieldLabel required>Paquete</FieldLabel>
-            <input className="input" value={packageName} onChange={(e) => setPackageName(e.target.value)} placeholder="e.g. Bypass, Premium" />
+            <select 
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 placeholder:text-zinc-600 px-3 py-2 rounded-lg text-sm outline-none focus:border-emerald-500/50 transition" 
+              value={packageName} 
+              onChange={(e) => {
+                setPackageName(e.target.value);
+                setPrefix(e.target.value);
+              }}
+            >
+              <option value="Bypass" className="bg-zinc-950">Bypass</option>
+              <option value="Silent" className="bg-zinc-950">Silent</option>
+              <option value="Guate Xiter" className="bg-zinc-950">Guate Xiter</option>
+            </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <FieldLabel required>Cantidad</FieldLabel>
-              <input type="number" min={1} max={500} className="input" value={count} onChange={(e) => setCount(parseInt(e.target.value) || 1)} />
+              <input 
+                type="number" 
+                min={1} 
+                max={500} 
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 placeholder:text-zinc-600 px-3 py-2 rounded-lg text-sm outline-none focus:border-emerald-500/50 transition font-mono" 
+                value={count} 
+                onChange={(e) => setCount(parseInt(e.target.value) || 1)} 
+              />
             </div>
             <div>
               <FieldLabel required>Duración</FieldLabel>
-              <select className="input" value={`${duration}|${unit}`} onChange={(e) => {
-                const [d, u] = e.target.value.split("|");
-                setDuration(parseInt(d));
-                setUnit(u as any);
-              }}>
-                <option value="1|days">1d</option>
-                <option value="3|days">3d</option>
-                <option value="7|days">7d</option>
-                <option value="15|days">15d</option>
-                <option value="30|days">30d</option>
-                <option value="90|days">90d</option>
-                <option value="180|days">180d</option>
-                <option value="365|days">365d</option>
-                <option value="1|months">1mo</option>
-                <option value="3|months">3mo</option>
-                <option value="6|months">6mo</option>
-                <option value="12|months">12mo</option>
-                <option value="1|years">1y</option>
-                <option value="0|lifetime">Lifetime</option>
+              <select 
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 placeholder:text-zinc-600 px-3 py-2 rounded-lg text-sm outline-none focus:border-emerald-500/50 transition" 
+                value={`${duration}|${unit}`} 
+                onChange={(e) => {
+                  const [d, u] = e.target.value.split("|");
+                  setDuration(parseInt(d));
+                  setUnit(u as any);
+                }}
+              >
+                <option value="1|days" className="bg-zinc-950">1d</option>
+                <option value="3|days" className="bg-zinc-950">3d</option>
+                <option value="7|days" className="bg-zinc-950">7d</option>
+                <option value="30|days" className="bg-zinc-950">30d</option>
+                <option value="90|days" className="bg-zinc-950">90d</option>
+                <option value="180|days" className="bg-zinc-950">180d</option>
+                <option value="365|days" className="bg-zinc-950">365d</option>
+                <option value="0|lifetime" className="bg-zinc-950">Lifetime</option>
               </select>
             </div>
           </div>
-          <div>
-            <FieldLabel required>Formato de licencia</FieldLabel>
-            <div className="flex items-stretch gap-0">
-              <input
-                className="input rounded-r-none border-r-0 flex-1"
-                value={prefix}
-                onChange={(e) => setPrefix(e.target.value)}
-                placeholder="Guate Xiter"
-              />
-              <span className="flex items-center justify-center px-2 bg-bg-secondary border border-border text-text-dim font-mono">-</span>
-              <input
-                className="input rounded-l-none border-l-0 flex-[2] font-mono"
-                value={suffix}
-                onChange={(e) => setSuffix(e.target.value)}
-                placeholder="****-****-****-****"
-              />
+
+          <div className="bg-zinc-900/60 rounded-lg p-3 border border-zinc-800/80 text-[11px] text-zinc-400 font-medium">
+            <div className="flex items-center gap-2 text-zinc-500 uppercase text-[10px] tracking-wider mb-1">
+              <Info className="w-3.5 h-3.5 text-emerald-500" /> Vista previa
             </div>
-            <p className="text-[11px] text-text-dim mt-1.5 flex items-center gap-1.5">
-              <Info className="w-3 h-3" />
-              Vista previa: <code className="font-mono text-text-muted">{prefix || "—"}-{suffix || "****"}</code>
-            </p>
+            <code className="font-mono text-zinc-300 text-[12px]">
+              {prefix || "Guate Xiter"}-{suffix || "****-****-****-****"}
+            </code>
           </div>
-          <div className="flex items-center gap-4 text-sm pt-1">
-            <label className="flex items-center gap-1.5 cursor-pointer text-text-muted">
-              <input type="checkbox" checked={hwidLock} onChange={(e) => setHwidLock(e.target.checked)} className="accent-accent" />
-              HWID lock
+
+          <div className="flex items-center gap-4 text-xs pt-1">
+            <label className="flex items-center gap-1.5 cursor-pointer text-zinc-400 hover:text-zinc-200">
+              <input type="checkbox" checked={hwidLock} onChange={(e) => setHwidLock(e.target.checked)} className="accent-emerald-500 w-4 h-4 rounded cursor-pointer" />
+              <span>Bloqueo HWID</span>
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer text-text-muted">
-              <input type="checkbox" checked={ipLock} onChange={(e) => setIpLock(e.target.checked)} className="accent-accent" />
-              IP lock
+            <label className="flex items-center gap-1.5 cursor-pointer text-zinc-400 hover:text-zinc-200">
+              <input type="checkbox" checked={ipLock} onChange={(e) => setIpLock(e.target.checked)} className="accent-emerald-500 w-4 h-4 rounded cursor-pointer" />
+              <span>Bloqueo IP</span>
             </label>
           </div>
-          {err && <div className="text-sm text-danger bg-danger/10 border border-danger/30 rounded px-3 py-2">{err}</div>}
-          <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="btn-secondary text-sm">Cancelar</button>
-            <button onClick={submit} className="btn-primary text-sm" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Crear licencia"}
+
+          {err && <div className="text-xs text-red-400 bg-red-950/20 border border-red-900/30 rounded-lg px-3 py-2">{err}</div>}
+          
+          <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800/40">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:bg-zinc-850 hover:text-zinc-200 transition">
+              Cancelar
+            </button>
+            <button 
+              type="button" 
+              onClick={submit} 
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-white shadow-lg shadow-emerald-500/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5"
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Crear licencia"}
             </button>
           </div>
         </div>
@@ -423,7 +457,7 @@ export function CreateUserInlineButton({ apps, defaultAppId, label = "Create Use
   );
 }
 
-export function CreateLicenseInlineButton({ apps, defaultAppId, label = "Create License", className }: { apps: App[]; defaultAppId?: string; label?: string; className?: string }) {
+export function CreateLicenseInlineButton({ apps, defaultAppId, label = "Create License", className, forcePrefix }: { apps: App[]; defaultAppId?: string; label?: string; className?: string; forcePrefix?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -434,7 +468,7 @@ export function CreateLicenseInlineButton({ apps, defaultAppId, label = "Create 
       >
         <Key className="w-4 h-4" /> {label}
       </button>
-      {open && <CreateLicenseModal apps={apps} onClose={() => setOpen(false)} defaultAppId={defaultAppId} />}
+      {open && <CreateLicenseModal apps={apps} onClose={() => setOpen(false)} defaultAppId={defaultAppId} forcePrefix={forcePrefix} />}
     </>
   );
 }

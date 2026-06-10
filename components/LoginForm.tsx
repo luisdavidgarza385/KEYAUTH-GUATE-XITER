@@ -2,13 +2,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, Lock } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import styles from "@/app/login/auth.module.css";
 
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,41 +39,68 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit}>
-      <div className={styles.field}>
-        <User />
-        <input
-          type="text"
-          className={styles.input}
-          placeholder="Email or Username"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="username"
-        />
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div>
+        <label className={styles.inputLabel}>Email or Username</label>
+        <div className={styles.fieldWrapper}>
+          <input
+            type="text"
+            className={styles.premiumInput}
+            placeholder="Enter your email or username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="username"
+          />
+        </div>
       </div>
-      <div className={styles.field}>
-        <Lock />
-        <input
-          type="password"
-          className={styles.input}
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
+
+      <div>
+        <label className={styles.inputLabel}>Password</label>
+        <div className={styles.fieldWrapper}>
+          <input
+            type={showPassword ? "text" : "password"}
+            className={styles.premiumInput}
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className={styles.eyeBtn}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
+
       <div className={styles.row}>
         <label className={styles.remember}>
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-          Remember me
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className={styles.checkbox}
+          />
+          <span>Remember me</span>
         </label>
-        <Link href="/forgot-password" className={styles.forgot}>Forgot Password?</Link>
+        <Link href="/forgot-password" className={styles.forgot}>
+          Forgot password?
+        </Link>
       </div>
+
       {error && <div className={styles.error}>{error}</div>}
-      <button type="submit" className={styles.btn} disabled={loading}>
-        {loading ? <span className={styles.spinner} /> : <>Sign In <span className={styles.arrow}>→</span></>}
+
+      <button type="submit" className={styles.premiumBtn} disabled={loading}>
+        {loading ? (
+          <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading...</>
+        ) : (
+          "Login"
+        )}
       </button>
     </form>
   );
