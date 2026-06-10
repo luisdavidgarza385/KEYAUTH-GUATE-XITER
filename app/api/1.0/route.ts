@@ -141,7 +141,9 @@ export async function POST(req: NextRequest) {
       if (!app && appId) app = await store.getAppByAppId(String(appId));
       if (!app) return json({ success: false, message: "Application not found" }, 404);
 
-      if (!p.secret || p.secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
+      const secretFromHeader = req.headers.get("x-secret");
+      const effectiveSecret = p.secret || secretFromHeader;
+      if (!effectiveSecret || effectiveSecret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
       if (app.status !== "active") return json({ success: false, message: "Application is " + app.status }, 403);
 
       const sessionId = secureId(48);
@@ -201,7 +203,9 @@ export async function POST(req: NextRequest) {
 
       const app = await store.getAppByAppId(String(appId));
       if (!app) return json({ success: false, message: "Application not found" }, 404);
-      if (!p.secret || p.secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
+      const secretFromHeader2 = req.headers.get("x-secret");
+      const effectiveSecret2 = p.secret || secretFromHeader2;
+      if (!effectiveSecret2 || effectiveSecret2 !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
 
       const session = sessionsMap.get(String(sessionId));
       if (!session || session.app_id !== app.id) return json({ success: false, message: "Invalid session" }, 401);
