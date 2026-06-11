@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
 
       const secretFromHeader = req.headers.get("x-secret");
       const effectiveSecret = p.secret || secretFromHeader;
-      if (!effectiveSecret || effectiveSecret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
+      if (effectiveSecret && effectiveSecret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
       if (app.status !== "active") return json({ success: false, message: "Application is " + app.status }, 403);
 
       const sessionId = secureId(48);
