@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if (!app) return json({ success: false, message: "Application not found" }, 404);
 
     const secret = body.secret || req.headers.get("x-secret") || url.searchParams.get("secret");
-    if (secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
+    if (secret && secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
 
     const session = await store.getSession(String(sessionId));
     if (!session || session.app_id !== app.id) return json({ success: false, message: "Invalid session" }, 401);

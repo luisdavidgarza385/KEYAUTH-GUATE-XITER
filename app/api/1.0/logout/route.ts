@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       const app = await store.getAppByAppId(String(appId));
       if (app) {
         const secret = req.headers.get("x-secret") || url.searchParams.get("secret");
-        if (secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
+        if (secret && secret !== app.app_secret) return json({ success: false, message: "Invalid application secret" }, 401);
       }
     }
     await store.invalidateSession(String(sessionId));
